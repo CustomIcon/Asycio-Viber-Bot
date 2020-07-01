@@ -42,4 +42,4 @@ async def sticker(chat: Chat):
     await chat.send_sticker(5900)
 
 if __name__ == '__main__':  # pragma: no branch
-    bot.run()  # pragma: no cover
+    await bot.run()  # pragma: no cover
