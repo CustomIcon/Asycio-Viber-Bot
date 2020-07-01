@@ -21,6 +21,7 @@ if ENV:
     AVATAR_URL = os.environ.get('AVATAR_URL', None)
     AUTH_TOKEN = os.environ.get('AUTH_TOKEN', None)
     HOST_NAME = os.environ.get('HOST_NAME', None)
+    WEBHOOK = os.environ.get('WEBHOOK', None)
 else:
     print('no')
 
@@ -30,6 +31,7 @@ viber = Api(BotConfiguration(
     name=BOT_NAME,
     avatar=AVATAR_URL,
     auth_token=AUTH_TOKEN,
+    webhook=WEBHOOK
 ))
 
 
