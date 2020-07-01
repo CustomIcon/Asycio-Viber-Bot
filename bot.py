@@ -30,7 +30,7 @@ async def ping(chat: Chat, matched):
     await chat.send_text('pong')
 
 @bot.command('start')
-async def ping(chat: Chat, matched):
+async def start(chat: Chat, matched):
     await chat.send_text('Im Alive! I was created on purpose of being a Chatbot, My master is Aman')
 
 @bot.event_handler('subscribed')
