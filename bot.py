@@ -1,11 +1,15 @@
+from flask import Flask, request, Response
+from viberbot import Api
+from viberbot.api.bot_configuration import BotConfiguration
+from viberbot.api.messages import VideoMessage
+from viberbot.api.messages.text_message import TextMessage
 import logging
-import os
 
-from aioviber.bot import Bot
-from aioviber.chat import Chat
+from viberbot.api.viber_requests import ViberConversationStartedRequest
+from viberbot.api.viber_requests import ViberFailedRequest
+from viberbot.api.viber_requests import ViberMessageRequest
 from viberbot.api.viber_requests import ViberSubscribedRequest
-
-logger = logging.getLogger(__name__)
+from viberbot.api.viber_requests import ViberUnsubscribedRequest
 
 ENV = True
 
@@ -14,32 +18,43 @@ if ENV:
     AVATAR_URL = os.environ.get('AVATAR_URL', None)
     AUTH_TOKEN = os.environ.get('AUTH_TOKEN', None)
     HOST_NAME = os.environ.get('HOST_NAME', None)
-    WEBHOOK = os.environ.get('WEBHOOK', None)
+else:
+    print('no')
 
-bot = Bot(
+
+app = Flask(__name__)
+viber = Api(BotConfiguration(
     name=BOT_NAME,
     avatar=AVATAR_URL,
-    auth_token=AUTH_TOKEN,  # Public account auth token
-    host=HOST_NAME,  # should be available from wide area network
-    port=80,
-    webhook=WEBHOOK,  # Webhook url
-)
+    auth_token=AUTH_TOKEN,
+))
 
-@bot.command('ping')
-async def ping(chat: Chat, matched):
-    await chat.send_text('pong')
 
-@bot.command('start')
-async def start(chat: Chat, matched):
-    await chat.send_text('Im Alive! I was created on purpose of being a Chatbot, My master is Aman')
+@app.route('/', methods=['POST'])
+def incoming():
+    logger.debug("received request. post data: {0}".format(request.get_data()))
+    # every viber message is signed, you can verify the signature using this method
+    if not viber.verify_signature(request.get_data(), request.headers.get('X-Viber-Content-Signature')):
+        return Response(status=403)
 
-@bot.event_handler('subscribed')
-async def user_subscribed(chat: Chat, request: ViberSubscribedRequest):
-    await chat.send_text('Welcome')
+    # this library supplies a simple way to receive a request object
+    viber_request = viber.parse_request(request.get_data())
 
-@bot.message_handler('sticker')
-async def sticker(chat: Chat):
-    await chat.send_sticker(5900)
+    if isinstance(viber_request, ViberMessageRequest):
+        message = viber_request.message
+        # lets echo back
+        viber.send_messages(viber_request.sender.id, [
+            message
+        ])
+    elif isinstance(viber_request, ViberSubscribedRequest):
+        viber.send_messages(viber_request.get_user.id, [
+            TextMessage(text="thanks for subscribing!")
+        ])
+    elif isinstance(viber_request, ViberFailedRequest):
+        logger.warn("client failed receiving message. failure: {0}".format(viber_request))
 
-if __name__ == '__main__':  # pragma: no branch
-    await bot.run()  # pragma: no cover
+    return Response(status=200)
+
+if __name__ == "__main__":
+    context = ('server.crt', 'server.key')
+    app.run(host=HOST_NAME, port=443, debug=True, ssl_context=context)
